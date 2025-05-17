@@ -1,74 +1,76 @@
-from fastapi import FastAPI, APIRouter
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi import FastAPI, HTTPException, Query, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 import os
-import logging
-from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List
 import uuid
 from datetime import datetime
+import pymongo
+from pymongo import MongoClient
 
+# Get environment variables
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "test_database")
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# MongoDB client
+client = MongoClient(MONGO_URL)
+db = client[DB_NAME]
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
-
-# Create the main app without a prefix
 app = FastAPI()
 
-# Create a router with the /api prefix
-api_router = APIRouter(prefix="/api")
-
-
-# Define Models
-class StatusCheck(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.dict()
-    status_obj = StatusCheck(**status_dict)
-    _ = await db.status_checks.insert_one(status_obj.dict())
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find().to_list(1000)
-    return [StatusCheck(**status_check) for status_check in status_checks]
-
-# Include the router in the main app
-app.include_router(api_router)
-
+# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Models
+class Category(BaseModel):
+    id: str
+    name: str
+    color: str
+
+class Event(BaseModel):
+    id: str
+    title: str
+    start: str
+    end: str
+    categoryId: str
+    description: Optional[str] = None
+
+# Mock data for categories
+MOCK_CATEGORIES = [
+    {"id": "work", "name": "Work", "color": "#4F46E5"},
+    {"id": "personal", "name": "Personal", "color": "#10B981"},
+    {"id": "family", "name": "Family", "color": "#F59E0B"},
+    {"id": "academy", "name": "Academy", "color": "#EF4444"},
+    {"id": "events", "name": "Events", "color": "#8B5CF6"},
+]
+
+# API Routes
+@app.get("/api/")
+async def read_root():
+    return {"message": "Calendar API is running"}
+
+@app.get("/api/config/categories", response_model=List[Category])
+async def get_categories():
+    # Return mock categories
+    return MOCK_CATEGORIES
+
+@app.on_event("startup")
+async def startup_db_client():
+    # Initialize database when app starts
+    try:
+        # Check if collection exists and initialize if not
+        if "categories" not in db.list_collection_names():
+            db.categories.insert_many(MOCK_CATEGORIES)
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+    
+    print("Connected to MongoDB")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
