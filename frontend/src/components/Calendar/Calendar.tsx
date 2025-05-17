@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../redux/store';
 import CalendarHeader from './CalendarHeader';
 import DayView from './DayView';
+import WeekView from './WeekView';
 import EventFormModal from './EventFormModal';
 
 const Calendar: React.FC = () => {
@@ -15,7 +16,7 @@ const Calendar: React.FC = () => {
       case 'day':
         return <DayView />;
       case 'week':
-        return <div className="flex-1 p-4">Week view to be implemented</div>;
+        return <WeekView />;
       case 'month':
         return <div className="flex-1 p-4">Month view to be implemented</div>;
       case 'year':
