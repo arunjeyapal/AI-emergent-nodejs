@@ -9,7 +9,8 @@ import {
   isSameDay, 
   isToday,
   addMonths,
-  subMonths
+  subMonths,
+  getDay
 } from 'date-fns';
 import { setSelectedDate } from '../../redux/calendarSlice';
 import { RootState } from '../../redux/store';
@@ -17,6 +18,8 @@ import { RootState } from '../../redux/store';
 const MiniCalendar: React.FC = () => {
   const dispatch = useDispatch();
   const selectedDate = useSelector((state: RootState) => new Date(state.calendar.selectedDate));
+  const events = useSelector((state: RootState) => state.events.events);
+  const selectedCategoryIds = useSelector((state: RootState) => state.categories.selectedCategories);
   
   const [currentMonth, setCurrentMonth] = React.useState(startOfMonth(selectedDate));
   
@@ -46,12 +49,50 @@ const MiniCalendar: React.FC = () => {
     dispatch(setSelectedDate(date.toISOString()));
   };
 
-  // Create an array to represent the first week with empty cells for days not in this month
-  const startDayOfWeek = days[0].getDay();
-  const daysGrid = [
-    ...Array(startDayOfWeek).fill(null),
-    ...days
-  ];
+  // Check if a date has events
+  const hasEvents = (date: Date): boolean => {
+    return events.some(event => {
+      const eventStart = new Date(event.start);
+      return (
+        isSameDay(date, eventStart) && 
+        selectedCategoryIds.includes(event.categoryId)
+      );
+    });
+  };
+
+  // Create a calendar grid with proper day alignment
+  const createCalendarGrid = () => {
+    const firstDayOfMonth = startOfMonth(currentMonth);
+    const firstDayOfWeek = getDay(firstDayOfMonth); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Create empty cells for days before the first day of month
+    const leadingEmptyCells = Array.from({ length: firstDayOfWeek }, (_, i) => (
+      <div key={`empty-start-${i}`} className="text-center"></div>
+    ));
+    
+    // Create cells for each day of the month
+    const dayCells = days.map(day => (
+      <div key={day.getTime()} className="text-center">
+        <button
+          onClick={() => handleSelectDate(day)}
+          className={`
+            w-6 h-6 text-xs rounded-full flex items-center justify-center relative
+            ${isSameDay(day, selectedDate) ? 'bg-blue-100 text-blue-600 font-semibold' : ''}
+            ${isToday(day) ? 'border border-blue-500' : ''}
+            ${!isSameMonth(day, currentMonth) ? 'text-gray-300' : 'text-gray-700'}
+            hover:bg-gray-100
+          `}
+        >
+          {format(day, 'd')}
+          {hasEvents(day) && (
+            <span className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full"></span>
+          )}
+        </button>
+      </div>
+    ));
+    
+    return [...leadingEmptyCells, ...dayCells];
+  };
 
   return (
     <div className="bg-white rounded-lg shadow p-3">
@@ -86,24 +127,7 @@ const MiniCalendar: React.FC = () => {
       </div>
       
       <div className="grid grid-cols-7 gap-1">
-        {daysGrid.map((day, i) => (
-          <div key={i} className="text-center">
-            {day ? (
-              <button
-                onClick={() => handleSelectDate(day)}
-                className={`
-                  w-6 h-6 text-xs rounded-full flex items-center justify-center
-                  ${isSameDay(day, selectedDate) ? 'bg-blue-100 text-blue-600 font-semibold' : ''}
-                  ${isToday(day) ? 'border border-blue-500' : ''}
-                  ${!isSameMonth(day, currentMonth) ? 'text-gray-300' : 'text-gray-700'}
-                  hover:bg-gray-100
-                `}
-              >
-                {format(day, 'd')}
-              </button>
-            ) : null}
-          </div>
-        ))}
+        {createCalendarGrid()}
       </div>
     </div>
   );

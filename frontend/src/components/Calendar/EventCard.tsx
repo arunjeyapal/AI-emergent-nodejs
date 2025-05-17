@@ -15,13 +15,16 @@ const EventCard: React.FC<EventCardProps> = ({ event, category, onClick }) => {
   return (
     <div 
       onClick={onClick}
-      className="rounded-md px-2 py-1 mb-1 cursor-pointer overflow-hidden text-white text-sm"
-      style={{ backgroundColor: category.color }}
+      className="rounded-md px-2 py-1 mb-1 cursor-pointer overflow-hidden text-white text-sm h-full flex flex-col"
+      style={{ 
+        backgroundColor: category.color,
+        minHeight: '30px' // ensure the card is always visible even for very short events
+      }}
     >
       <div className="font-medium truncate">
         {event.title}
       </div>
-      <div className="text-xs opacity-90">
+      <div className="text-xs opacity-90 truncate">
         {startTime} - {endTime}
       </div>
     </div>
