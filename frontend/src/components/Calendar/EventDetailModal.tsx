@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { format } from 'date-fns';
 import { EventType, CategoryType } from '../../types';
 import { deleteEvent } from '../../redux/eventSlice';
+import EventFormModal from './EventFormModal';
 
 interface EventDetailModalProps {
   event: EventType;
@@ -12,6 +13,7 @@ interface EventDetailModalProps {
 
 const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, category, onClose }) => {
   const dispatch = useDispatch();
+  const [isEditMode, setIsEditMode] = useState(false);
   
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to remove this event?')) {
@@ -19,6 +21,23 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, category, on
       onClose();
     }
   };
+
+  const handleEdit = () => {
+    setIsEditMode(true);
+  };
+
+  // If in edit mode, show the event form instead
+  if (isEditMode) {
+    return (
+      <EventFormModal 
+        event={event} 
+        onClose={() => {
+          setIsEditMode(false);
+          onClose();
+        }} 
+      />
+    );
+  }
 
   const startDate = new Date(event.start);
   const endDate = new Date(event.end);
@@ -74,12 +93,20 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, category, on
         )}
         
         <div className="flex justify-between mt-6">
-          <button
-            onClick={handleDelete}
-            className="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 focus:outline-none"
-          >
-            Remove
-          </button>
+          <div className="space-x-2">
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 focus:outline-none"
+            >
+              Remove
+            </button>
+            <button
+              onClick={handleEdit}
+              className="px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none"
+            >
+              Edit
+            </button>
+          </div>
           
           {category.id === 'academy' && (
             <button
